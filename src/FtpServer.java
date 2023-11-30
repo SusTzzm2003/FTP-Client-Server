@@ -9,7 +9,7 @@ import java.util.Objects;
 public class FtpServer{ // multi-client
 
     public static void main(String[] args) throws IOException {
-        ServerSocket server = new ServerSocket(8888);cd 
+        ServerSocket server = new ServerSocket(8888);
         int server_dynamic_port = 8889;
         int client_dynamic_port = 9999;
         while (true) {
