@@ -35,7 +35,7 @@ class ClientHandler implements Runnable { // multi-request
     DataOutputStream dos;
     int upload_port_no;
     int download_port_no;
-    String downloadPath = "C:\\Users\\ZZM2021\\Desktop\\Download";
+    String downloadPath = "D:\\Lab Practice\\Java2\\Download";
     ArrayList<FileTransferHandler> uploadObjList = new ArrayList<>();
     ArrayList<File> downloadFileList = new ArrayList<>();
 
@@ -122,8 +122,12 @@ class ClientHandler implements Runnable { // multi-request
         String[] fileNames = dis.readUTF().split(",");
         for (FileTransferHandler obj : uploadObjList) {
             if (Arrays.asList(fileNames).contains(obj.uploadFile.getName())) {
-                obj.pause();
-                dos.writeUTF(obj.uploadFile.getName() + " has been paused");
+                if (obj.byteNum < obj.fileSize) {
+                    obj.pause();
+                    dos.writeUTF(obj.uploadFile.getName() + " has been paused");
+                } else {
+                    dos.writeUTF(obj.uploadFile.getName() + " is already uploaded");
+                }
             }
         }
         dos.writeUTF("end");
@@ -149,11 +153,17 @@ class ClientHandler implements Runnable { // multi-request
         ArrayList<FileTransferHandler> toDelete = new ArrayList<>();
         for (FileTransferHandler obj : uploadObjList) {
             if (Arrays.asList(fileNames).contains(obj.uploadFile.getName())) {
-                obj.cancel();
-                obj.uploadFile.delete();
-                toDelete.add(obj);
+                if (obj.byteNum < obj.fileSize) {
+                    obj.cancel();
+                    obj.uploadFile.delete();
+                    toDelete.add(obj);
+                    dos.writeUTF(obj.uploadFile.getName() + " has been cancelled uploading");
+                } else {
+                    dos.writeUTF(obj.uploadFile.getName() + "is already uploaded");
+                }
             }
         }
+        dos.writeUTF("end");
         uploadObjList.removeAll(toDelete);
     }
 
@@ -240,7 +250,7 @@ class ClientHandler implements Runnable { // multi-request
 
         // clear the fileList to empty and restore path
         downloadFileList = new ArrayList<>();
-        downloadPath = "C:\\Users\\ZZM2021\\Desktop\\Download";
+        downloadPath = "D:\\Lab Practice\\Java2\\Download";
     }
 
     private void closeAll() throws IOException {
@@ -258,7 +268,7 @@ class FileTransferHandler implements Runnable { // multi-file
     DataInputStream dis;
     DataOutputStream dos;
     File uploadFile;
-    int byteNum = 0;
+    long byteNum = 0;
     final Object pauseLock = new Object();
     volatile boolean paused = false;
     volatile boolean cancelled = false;
@@ -312,7 +322,11 @@ class FileTransferHandler implements Runnable { // multi-file
                     }
 
                     os.write(buffer, 0, len);
-                    this.byteNum += len;
+                    if (this.byteNum + len < this.fileSize) {
+                        this.byteNum += len;
+                    } else {
+                        this.byteNum = this.fileSize;
+                    }
                 }
             }
             os.close();
@@ -333,12 +347,12 @@ class FileTransferHandler implements Runnable { // multi-file
         String dirPath;
         if (tempArray.length > 0) {
             // file is in directory
-            dirPath = "C:\\Users\\ZZM2021\\Desktop\\Storage\\" + tempArray[0];
+            dirPath = "D:\\Lab Practice\\Java2\\Storage\\" + tempArray[0];
             File dirFile = new File(dirPath);
             dirFile.mkdirs();
         } else {
             // file is not in directory
-            dirPath = "C:\\Users\\ZZM2021\\Desktop\\Storage\\";
+            dirPath = "D:\\Lab Practice\\Java2\\Storage\\";
         }
 
         File file = new File(dirPath + fileName);

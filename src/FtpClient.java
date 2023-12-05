@@ -10,7 +10,7 @@ public class FtpClient implements Runnable {
     DataOutputStream dos;
     File downloadFile;
     long fileSize;
-    int byteNum = 0;
+    long byteNum = 0;
     volatile boolean paused = false;
     volatile boolean cancelled = false;
     final Object pauseLock = new Object();
@@ -19,7 +19,7 @@ public class FtpClient implements Runnable {
     static Socket commandSocket;
     static DataInputStream commandDis;
     static DataOutputStream commandDos;
-    static String uploadPath = "C:\\Users\\ZZM2021\\Desktop\\Upload";
+    static String uploadPath = "D:\\Lab Practice\\Java2\\Upload";
     static ArrayList<File> uploadFileList = new ArrayList<>();
     static ArrayList<FtpClient> downloadObjList = new ArrayList<>();
     static String function;
@@ -164,7 +164,6 @@ public class FtpClient implements Runnable {
             is.close();
         } catch (Exception e) {
             if (e.getMessage().contains("Connection reset")) {
-                System.out.println(uploadFile.getName() + "has been cancelled");
                 closeAll();
             } else {
                 throw new RuntimeException(e);
@@ -223,7 +222,7 @@ public class FtpClient implements Runnable {
 
         // clear the fileList to empty and restore path
         uploadFileList = new ArrayList<>();
-        uploadPath = "C:\\Users\\ZZM2021\\Desktop\\Upload";
+        uploadPath = "D:\\Lab Practice\\Java2\\Upload";
     }
 
     private static int getFileCount(List<File> list) {
@@ -282,6 +281,13 @@ public class FtpClient implements Runnable {
         System.out.println("Enter the files you want to cancel: ");
         String fileNames = scanner.next();
         commandDos.writeUTF(fileNames);
+        while (true) {
+            String result = commandDis.readUTF();
+            if (result.equals("end")) {
+                break;
+            }
+            System.out.println(result);
+        }
     }
 
     private static void iterSend(List<File> fileList, int port) throws IOException {
@@ -311,12 +317,12 @@ public class FtpClient implements Runnable {
         String dirPath;
         if (tempArray.length > 0) {
             // file is in directory
-            dirPath = "C:\\Users\\ZZM2021\\Desktop\\Resources\\" + tempArray[0];
+            dirPath = "D:\\Lab Practice\\Java2\\Resources\\" + tempArray[0];
             File dirFile = new File(dirPath);
             dirFile.mkdirs();
         } else {
             // file is not in directory
-            dirPath = "C:\\Users\\ZZM2021\\Desktop\\Resources\\";
+            dirPath = "D:\\Lab Practice\\Java2\\Resources\\";
         }
 
         File file = new File(dirPath + fileName);
@@ -346,7 +352,11 @@ public class FtpClient implements Runnable {
                     }
 
                     os.write(buffer, 0, len);
-                    this.byteNum += len;
+                    if (this.byteNum + len < this.fileSize) {
+                        this.byteNum += len;
+                    } else {
+                        this.byteNum = this.fileSize;
+                    }
                 }
             }
             os.close();
@@ -420,8 +430,12 @@ public class FtpClient implements Runnable {
         String[] fileNames = scanner.next().split(",");
         for (FtpClient obj : downloadObjList) {
             if (Arrays.asList(fileNames).contains(obj.downloadFile.getName())) {
-                obj.pause();
-                System.out.println(obj.downloadFile.getName() + " has been paused");
+                if (obj.byteNum < obj.fileSize) {
+                    obj.pause();
+                    System.out.println(obj.downloadFile.getName() + " has been paused");
+                } else {
+                    System.out.println(obj.downloadFile.getName() + " is already downloaded");
+                }
             }
         }
     }
@@ -447,10 +461,14 @@ public class FtpClient implements Runnable {
         ArrayList<FtpClient> toDelete = new ArrayList<>();
         for (FtpClient obj : downloadObjList) {
             if (Arrays.asList(fileNames).contains(obj.downloadFile.getName())) {
-                obj.cancel();
-                obj.downloadFile.delete();
-                toDelete.add(obj);
-                System.out.println(obj.downloadFile.getName() + "has been cancelled uploading");
+                if (obj.byteNum < obj.fileSize) {
+                    obj.cancel();
+                    obj.downloadFile.delete();
+                    toDelete.add(obj);
+                    System.out.println(obj.downloadFile.getName() + " has been cancelled downloading");
+                } else {
+                    System.out.println(obj.downloadFile.getName() + "is already downloaded");
+                }
             }
         }
         downloadObjList.removeAll(toDelete);
